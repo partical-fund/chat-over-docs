@@ -1,32 +1,28 @@
 import os
-from typing import Tuple, List
-from operator import itemgetter
 import langchain
 from langchain.document_loaders import DirectoryLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
-from langchain.schema.runnable import RunnableMap
-from langchain.schema import format_document
-from langchain.prompts.prompt import PromptTemplate
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts.chat import ChatPromptTemplate
-from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain.chat_models import ChatOpenAI
-from langchain.schema.output_parser import StrOutputParser
-from langchain.memory import ConversationSummaryBufferMemory
-from langchain.llms import OpenAI
-from langchain.vectorstores import utils
+from langchain.prompts.prompt import PromptTemplate
+from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
+from langchain.chains import LLMChain
+from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.chains import ConversationalRetrievalChain
 
 os.environ['OPENAI_API_KEY'] = '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'
 
-def get_answer(path, user_input):
-	loader = DirectoryLoader(path, glob="**/*.pdf")
+def make_retriever(path_name):
+	
+	loader = DirectoryLoader(path_name, glob="**/*.pdf")
 
 	docs = loader.load()
 
-	text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-
+	text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
+    chunk_size=256, chunk_overlap=0
+	)
+	
 	texts = text_splitter.split_documents(docs)
 
 	texts = langchain.vectorstores.utils.filter_complex_metadata(texts)
@@ -37,16 +33,42 @@ def get_answer(path, user_input):
 
 	retriever = vectorstore.as_retriever()
 
-	llm = OpenAI(temperature=0)
+	return retriever
 
+def get_answer(user_input, chat_history, retriever):
+
+	llm = ChatOpenAI(temperature=0, model_name="gpt-4")
+
+	_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
+
+	Chat History:
+	{chat_history}
+	Follow Up Input: {question}
+	Standalone question:"""
 	
+	CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(_template)
 
-	return result
+	question_generator = LLMChain(llm=llm, prompt=CONDENSE_QUESTION_PROMPT)
+
+	doc_chain = load_qa_with_sources_chain(llm, chain_type="map_reduce")
+	
+	chain = ConversationalRetrievalChain(
+    retriever=retriever,
+    question_generator=question_generator,
+    combine_docs_chain=doc_chain
+	)
+
+	result = chain({"question": user_input, "chat_history": chat_history})
+
+	return result["answer"]
 
 while True:
 	path_name = input("Enter path name: ")
+	retriever = make_retriever(path_name)
 	print("Ask a question...")
+	chat_history = []
 	while True:
 		user_input = input("You: ")
-		response = get_answer(path_name, user_input)
+		response = get_answer(user_input, chat_history, retriever)
+		chat_history = [(user_input, response)]
 		print("Response: ", response)
