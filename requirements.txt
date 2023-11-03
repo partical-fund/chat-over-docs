@@ -1,0 +1,7 @@
+langchain
+unstructured[pdf]
+ffmpeg
+tiktoken
+openai
+chromadb
+pysqlite3-binary

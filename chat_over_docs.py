@@ -10,8 +10,12 @@ from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_
 from langchain.chains import LLMChain
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chains import ConversationalRetrievalChain
+__import__('pysqlite3')
+import sys
 
-os.environ['OPENAI_API_KEY'] = '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'
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
+os.environ['OPENAI_API_KEY'] = <INSERT KEY>
 
 def make_retriever(path_name):
 	
