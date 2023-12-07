@@ -1,12 +1,19 @@
-# Chat Over Docs
+# 💬 📚 Chat Over Docs
 
 This prototype allows users to chat over their documentns.
 
 ## Table of Contents
+- [Quick Start](#quick-start)
 - [Project Overview](#project-overview)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
 - [Usage](#usage)
+
+## Quick Start
+
+```docker build -t chat_over_docs .```
+
+```docker run -it --name chat_over_docs chat_over_docs /bin/bash```
 
 ## Project Overview
 
